@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::convert::From;
 use std::fmt::{Debug, Display, Formatter, Result};
 use std::ptr;
@@ -12,19 +11,15 @@ use crate::{Context, Error};
 #[derive(Debug)]
 pub struct Value {
     ctx: Context,
-    res: Rc<RefCell<usize>>
+    res: Rc<usize>
 }
 
 impl Value {
     pub(crate) unsafe fn with_context(ctx: Context, res: usize) -> Self {
         Value {
             ctx: ctx,
-            res: Rc::new(RefCell::new(res)),
+            res: Rc::new(res),
         }
-    }
-
-    fn res(&self) -> usize {
-        *self.res.borrow()
     }
 }
 
@@ -43,7 +38,7 @@ impl Value {
         let mut len: usize = 0;
 
         unsafe {
-            let err = cue_sys::cue_dec_json(self.res(), &mut buf_ptr, &mut len);
+            let err = cue_sys::cue_dec_json(*self.res, &mut buf_ptr, &mut len);
             if err != 0 {
                 return Error::from_res(err).to_string()
             }
@@ -79,7 +74,7 @@ impl From<i64> for Value {
     fn from(item: i64) -> Self {
         let ctx = Context::new();
         unsafe {
-            let res = cue_sys::cue_from_int64(ctx.res(), item);
+            let res = cue_sys::cue_from_int64(*ctx.res, item);
             Self::with_context(ctx, res)
         }
     }
@@ -107,7 +102,7 @@ impl From<u64> for Value {
     fn from(item: u64) -> Self {
         let ctx = Context::new();
         unsafe {
-            let res = cue_sys::cue_from_uint64(ctx.res(), item);
+            let res = cue_sys::cue_from_uint64(*ctx.res, item);
             Self::with_context(ctx, res)
         }
     }
@@ -124,7 +119,7 @@ impl Drop for Value {
     fn drop(&mut self) {
         if Rc::strong_count(&self.res) == 1 {
             unsafe {
-                cue_sys::cue_free(self.res());
+                cue_sys::cue_free(*self.res);
             }
         }
     }

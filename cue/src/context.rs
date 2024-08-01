@@ -1,22 +1,17 @@
 use std::rc::Rc;
-use std::cell::RefCell;
 
 use cue_sys;
 
 #[derive(Debug)]
 pub struct Context {
-    pub(crate) res: Rc<RefCell<usize>>,
+    pub(crate) res: Rc<usize>,
 }
 
 impl Context {
     pub fn new() -> Self {
         Context {
-            res: Rc::new(RefCell::new(unsafe { cue_sys::cue_newctx() })),
+            res: Rc::new(unsafe { cue_sys::cue_newctx() }),
         }
-    }
-
-    pub(crate) fn res(&self) -> usize {
-        *self.res.borrow()
     }
 }
 
@@ -32,7 +27,7 @@ impl Drop for Context {
     fn drop(&mut self) {
         if Rc::strong_count(&self.res) == 1 {
             unsafe {
-                cue_sys::cue_free(self.res());
+                cue_sys::cue_free(*self.res);
             }
         }
     }
@@ -45,13 +40,13 @@ mod tests {
     #[test]
     fn new() {
         let ctx = Context::new();
-        assert_ne!(ctx.res(), 0);
+        assert_ne!(*ctx.res, 0);
     }
 
     #[test]
     fn multiple() {
         let ctx0 = Context::new();
         let ctx1 = Context::new();
-        assert_ne!(ctx0.res(), ctx1.res());
+        assert_ne!(*ctx0.res, *ctx1.res);
     }
 }

@@ -12,7 +12,7 @@ pub fn compile(ctx: &Context, input: &str) -> Result<Value, Error> {
     let str_ptr = CString::new(input).unwrap().into_raw();
 
     let result = unsafe {
-        let err = cue_sys::cue_compile_string(ctx.res(), str_ptr, null_ptr, val_ptr);
+        let err = cue_sys::cue_compile_string(*ctx.res, str_ptr, null_ptr, val_ptr);
         if err != 0 {
             Err(Error::from_res(err))
         } else {
