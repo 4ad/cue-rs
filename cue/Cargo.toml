@@ -1,0 +1,7 @@
+[package]
+name = "cue"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cue-sys = { path = "../cue-sys" }
