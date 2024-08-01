@@ -1,4 +1,5 @@
 use std::convert::{From, TryFrom};
+use std::cmp::Eq;
 use std::fmt;
 use std::ptr;
 use std::rc::Rc;
@@ -163,6 +164,13 @@ impl TryFrom<Value> for u64 {
     }
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { cue_sys::cue_is_equal(*self.res, *other.res) }
+    }
+}
+impl Eq for Value {}
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // TODO: print CUE syntax, not JSON.
@@ -255,5 +263,20 @@ mod tests {
 
         let v = crate::compile(&ctx, "true").unwrap();
         assert_eq!(u64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as int");
+    }
+
+    #[test]
+    fn eq() {
+        let v0 = Value::from(true);
+        let v1 = Value::from(true);
+        assert_eq!(v0, v1);
+
+        let v0 = Value::from(1);
+        let v1 = Value::from(2);
+        assert_ne!(v0, v1);
+
+        let v0 = Value::from(true);
+        let v1 = Value::from(1);
+        assert_ne!(v0, v1);
     }
 }
