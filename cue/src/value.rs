@@ -1,5 +1,5 @@
-use std::convert::From;
-use std::fmt::{Debug, Display, Formatter, Result};
+use std::convert::{From, TryFrom};
+use std::fmt;
 use std::ptr;
 use std::rc::Rc;
 use std::slice;
@@ -62,6 +62,21 @@ impl From<bool> for Value {
     }
 }
 
+impl TryFrom<Value> for bool {
+    type Error = Error;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let mut res = false;
+        unsafe {
+            let err = cue_sys::cue_dec_bool(*value.res, &mut res as *mut bool);
+            if err != 0 {
+               return Err(Error::from_res(err))
+            }
+        }
+        Ok(res)
+    }
+}
+
 impl From<i8> for Value {
     fn from(item: i8) -> Self {
         Value::from(item as i64)
@@ -87,6 +102,21 @@ impl From<i64> for Value {
             let res = cue_sys::cue_from_int64(*ctx.res, item);
             Self::with_context(ctx, res)
         }
+    }
+}
+
+impl TryFrom<Value> for i64 {
+    type Error = Error;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let mut res: i64 = 0;
+        unsafe {
+            let err = cue_sys::cue_dec_int64(*value.res, &mut res as *mut i64);
+            if err != 0 {
+               return Err(Error::from_res(err))
+            }
+        }
+        Ok(res)
     }
 }
 
@@ -118,8 +148,23 @@ impl From<u64> for Value {
     }
 }
 
-impl Display for Value {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+impl TryFrom<Value> for u64 {
+    type Error = Error;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let mut res: u64 = 0;
+        unsafe {
+            let err = cue_sys::cue_dec_uint64(*value.res, &mut res as *mut u64);
+            if err != 0 {
+               return Err(Error::from_res(err))
+            }
+        }
+        Ok(res)
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // TODO: print CUE syntax, not JSON.
         write!(f, "{}", self.to_json())
     }
@@ -160,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn from_i64() {
+    fn from_int() {
         let v = Value::from(1);
         assert_eq!(v.to_json(), "1");
 
@@ -173,9 +218,42 @@ mod tests {
     }
 
     #[test]
-    fn from_u64() {
+    fn from_unsigned() {
         let u: u64 = 0xdeadbeef;
         let v = Value::from(u);
         assert_eq!(v.to_json(), "3735928559");
+    }
+
+    #[test]
+    fn to_bool() {
+        let ctx = Context::new();
+
+        let v = crate::compile(&ctx, "true").unwrap();
+        assert_eq!(bool::try_from(v).unwrap(), true);
+
+        let v = crate::compile(&ctx, "1").unwrap();
+        assert_eq!(bool::try_from(v).unwrap_err().to_string(), "cannot use value 1 (type int) as bool");
+    }
+
+    #[test]
+    fn to_int() {
+        let ctx = Context::new();
+
+        let v = crate::compile(&ctx, "1").unwrap();
+        assert_eq!(i64::try_from(v).unwrap(), 1);
+
+        let v = crate::compile(&ctx, "true").unwrap();
+        assert_eq!(i64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as int");
+    }
+
+    #[test]
+    fn to_unsigned() {
+        let ctx = Context::new();
+
+        let v = crate::compile(&ctx, "0xdeadbeef").unwrap();
+        assert_eq!(u64::try_from(v).unwrap(), 0xdeadbeef);
+
+        let v = crate::compile(&ctx, "true").unwrap();
+        assert_eq!(u64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as int");
     }
 }
