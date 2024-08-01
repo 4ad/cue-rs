@@ -21,8 +21,7 @@ pub fn compile(ctx: &Context, input: &str) -> Result<Value, Error> {
     };
 
     unsafe {
-        // free allocated C memory.
-        let _ = CString::from_raw(str_ptr);
+        drop(CString::from_raw(str_ptr));
     }
 
     result
