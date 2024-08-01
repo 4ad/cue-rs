@@ -1,6 +1,8 @@
+use std::cell::RefCell;
 use std::convert::From;
 use std::fmt::{Debug, Display, Formatter, Result};
 use std::ptr;
+use std::rc::Rc;
 use std::slice;
 
 use cue_sys;
@@ -10,14 +12,27 @@ use crate::{Context, Error};
 #[derive(Debug)]
 pub struct Value {
     ctx: Context,
-    res: usize
+    res: Rc<RefCell<usize>>
 }
 
 impl Value {
     pub(crate) unsafe fn with_context(ctx: Context, res: usize) -> Self {
         Value {
             ctx: ctx,
-            res: res,
+            res: Rc::new(RefCell::new(res)),
+        }
+    }
+
+    fn res(&self) -> usize {
+        *self.res.borrow()
+    }
+}
+
+impl Clone for Value {
+    fn clone(&self) -> Self {
+        Value {
+            ctx: self.ctx.clone(),
+            res: Rc::clone(&self.res),
         }
     }
 }
@@ -28,7 +43,7 @@ impl Value {
         let mut len: usize = 0;
 
         unsafe {
-            let err = cue_sys::cue_dec_json(self.res, &mut buf_ptr, &mut len);
+            let err = cue_sys::cue_dec_json(self.res(), &mut buf_ptr, &mut len);
             if err != 0 {
                 return Error::from_res(err).to_string()
             }
@@ -107,8 +122,10 @@ impl Display for Value {
 
 impl Drop for Value {
     fn drop(&mut self) {
-        unsafe {
-            cue_sys::cue_free(self.res);
+        if Rc::strong_count(&self.res) == 1 {
+            unsafe {
+                cue_sys::cue_free(self.res());
+            }
         }
     }
 }
