@@ -52,6 +52,16 @@ impl Value {
     }
 }
 
+impl From<bool> for Value {
+    fn from(item: bool) -> Self {
+        let ctx = Context::new();
+        unsafe {
+            let res = cue_sys::cue_from_bool(*ctx.res, item);
+            Self::with_context(ctx, res)
+        }
+    }
+}
+
 impl From<i8> for Value {
     fn from(item: i8) -> Self {
         Value::from(item as i64)
@@ -138,6 +148,15 @@ mod tests {
 
         let v = crate::compile(&ctx, "{ x: 1 }");
         assert_eq!(v.unwrap().to_json(), "{\"x\":1}");
+    }
+
+    #[test]
+    fn from_bool() {
+        let v = Value::from(true);
+        assert_eq!(v.to_json(), "true");
+
+        let v = Value::from(false);
+        assert_eq!(v.to_json(), "false");
     }
 
     #[test]
