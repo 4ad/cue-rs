@@ -10,7 +10,7 @@ pub struct Error {
 
 impl Error {
     pub(crate) unsafe fn from_res(res: usize) -> Self {
-        Error { res: res }
+        Error { res }
     }
 }
 

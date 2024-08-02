@@ -20,7 +20,7 @@ pub struct Value {
 impl Value {
     pub(crate) unsafe fn with_context(ctx: Context, res: usize) -> Self {
         Value {
-            ctx: ctx,
+            ctx,
             res: Rc::new(res),
         }
     }
