@@ -1,5 +1,7 @@
 use std::convert::{From, TryFrom};
 use std::cmp::Eq;
+use std::ffi;
+use std::ffi::{CStr, CString};
 use std::fmt;
 use std::ptr;
 use std::rc::Rc;
@@ -20,6 +22,13 @@ impl Value {
         Value {
             ctx: ctx,
             res: Rc::new(res),
+        }
+    }
+
+    pub fn unify(&self, other: &Self) -> Self {
+        unsafe {
+            let res = cue_sys::cue_unify(*self.res, *other.res);
+            Self::with_context(self.ctx.clone(), res)
         }
     }
 }
@@ -164,6 +173,43 @@ impl TryFrom<Value> for u64 {
     }
 }
 
+impl From<&str> for Value {
+    fn from(item: &str) -> Self {
+        let ctx = Context::new();
+        let str_ptr = CString::new(item).unwrap().into_raw();
+        unsafe {
+            let res = cue_sys::cue_from_string(*ctx.res, str_ptr);
+            Self::with_context(ctx, res)
+        }
+    }
+}
+
+impl From<String> for Value {
+    fn from(item: String) -> Self {
+        Value::from(item.as_str())
+    }
+}
+
+impl TryFrom<Value> for String {
+    type Error = Error;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let mut buf_ptr = ptr::null_mut();
+        unsafe {
+            let err = cue_sys::cue_dec_string(*value.res, &mut buf_ptr);
+
+            if err != 0 {
+                return Err(Error::from_res(err));
+            }
+
+            let s = CStr::from_ptr(buf_ptr).to_string_lossy().into_owned();
+            cue_sys::libc_free(buf_ptr as *mut ffi::c_void);
+
+            Ok(s)
+        }
+    }
+}
+
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         unsafe { cue_sys::cue_is_equal(*self.res, *other.res) }
@@ -278,5 +324,36 @@ mod tests {
         let v0 = Value::from(true);
         let v1 = Value::from(1);
         assert_ne!(v0, v1);
+    }
+
+    #[test]
+    fn unify() {
+        let ctx = Context::new();
+
+        let v0 = crate::compile(&ctx, "int").unwrap();
+        let v1 = crate::compile(&ctx, "1").unwrap();
+        let r = v0.unify(&v1);
+        assert_eq!(r, v1);
+    }
+
+    #[test]
+    fn from_string() {
+        let v = Value::from("hello");
+        assert_eq!(v.to_json(), "\"hello\"");
+
+        let s = String::from("world");
+        let v = Value::from(s);
+        assert_eq!(v.to_json(), "\"world\"");
+    }
+
+    #[test]
+    fn to_string() {
+        let ctx = Context::new();
+
+        let v = crate::compile(&ctx, "\"hello\"").unwrap();
+        assert_eq!(String::try_from(v).unwrap(), "hello");
+
+        let v = crate::compile(&ctx, "int").unwrap();
+        assert_eq!(String::try_from(v).unwrap_err().to_string(), "cannot use value int (type int) as string");
     }
 }
