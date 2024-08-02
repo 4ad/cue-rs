@@ -31,6 +31,14 @@ impl Value {
             Self::with_context(self.ctx.clone(), res)
         }
     }
+
+    pub fn top() -> Self {
+        Context::new().top()
+    }
+
+    pub fn bottom() -> Self {
+        Context::new().top()
+    }
 }
 
 impl Clone for Value {

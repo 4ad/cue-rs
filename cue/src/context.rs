@@ -2,6 +2,8 @@ use std::rc::Rc;
 
 use cue_sys;
 
+use crate::Value;
+
 #[derive(Debug)]
 pub struct Context {
     pub(crate) res: Rc<usize>,
@@ -11,6 +13,20 @@ impl Context {
     pub fn new() -> Self {
         Context {
             res: Rc::new(unsafe { cue_sys::cue_newctx() }),
+        }
+    }
+
+    pub fn top(&self) -> Value {
+        unsafe {
+            let res = cue_sys::cue_top(*self.res);
+            Value::with_context(self.clone(), res)
+        }
+    }
+
+    pub fn bottom(&self) -> Value {
+        unsafe {
+            let res = cue_sys::cue_top(*self.res);
+            Value::with_context(self.clone(), res)
         }
     }
 }
