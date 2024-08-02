@@ -1,5 +1,5 @@
-use std::convert::{From, TryFrom};
 use std::cmp::Eq;
+use std::convert::{From, TryFrom};
 use std::ffi;
 use std::ffi::{CStr, CString};
 use std::fmt;
@@ -14,7 +14,7 @@ use crate::{Context, Error};
 #[derive(Debug)]
 pub struct Value {
     ctx: Context,
-    res: Rc<usize>
+    res: Rc<usize>,
 }
 
 impl Value {
@@ -58,7 +58,7 @@ impl Value {
         unsafe {
             let err = cue_sys::cue_dec_json(*self.res, &mut buf_ptr, &mut len);
             if err != 0 {
-                return Error::from_res(err).to_string()
+                return Error::from_res(err).to_string();
             }
 
             let slice = slice::from_raw_parts(buf_ptr as *const u8, len);
@@ -88,7 +88,7 @@ impl TryFrom<Value> for bool {
         unsafe {
             let err = cue_sys::cue_dec_bool(*value.res, &mut res);
             if err != 0 {
-               return Err(Error::from_res(err))
+                return Err(Error::from_res(err));
             }
         }
         Ok(res)
@@ -131,7 +131,7 @@ impl TryFrom<Value> for i64 {
         unsafe {
             let err = cue_sys::cue_dec_int64(*value.res, &mut res);
             if err != 0 {
-               return Err(Error::from_res(err))
+                return Err(Error::from_res(err));
             }
         }
         Ok(res)
@@ -174,7 +174,7 @@ impl TryFrom<Value> for u64 {
         unsafe {
             let err = cue_sys::cue_dec_uint64(*value.res, &mut res);
             if err != 0 {
-               return Err(Error::from_res(err))
+                return Err(Error::from_res(err));
             }
         }
         Ok(res)
@@ -242,7 +242,7 @@ impl TryFrom<Value> for f64 {
         unsafe {
             let err = cue_sys::cue_dec_double(*value.res, &mut res);
             if err != 0 {
-               return Err(Error::from_res(err))
+                return Err(Error::from_res(err));
             }
         }
         Ok(res)
@@ -325,7 +325,10 @@ mod tests {
         assert_eq!(bool::try_from(v).unwrap(), true);
 
         let v = crate::compile(&ctx, "1").unwrap();
-        assert_eq!(bool::try_from(v).unwrap_err().to_string(), "cannot use value 1 (type int) as bool");
+        assert_eq!(
+            bool::try_from(v).unwrap_err().to_string(),
+            "cannot use value 1 (type int) as bool"
+        );
     }
 
     #[test]
@@ -336,7 +339,10 @@ mod tests {
         assert_eq!(i64::try_from(v).unwrap(), 1);
 
         let v = crate::compile(&ctx, "true").unwrap();
-        assert_eq!(i64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as int");
+        assert_eq!(
+            i64::try_from(v).unwrap_err().to_string(),
+            "cannot use value true (type bool) as int"
+        );
     }
 
     #[test]
@@ -347,7 +353,10 @@ mod tests {
         assert_eq!(u64::try_from(v).unwrap(), 0xdeadbeef);
 
         let v = crate::compile(&ctx, "true").unwrap();
-        assert_eq!(u64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as int");
+        assert_eq!(
+            u64::try_from(v).unwrap_err().to_string(),
+            "cannot use value true (type bool) as int"
+        );
     }
 
     #[test]
@@ -393,7 +402,10 @@ mod tests {
         assert_eq!(String::try_from(v).unwrap(), "hello");
 
         let v = crate::compile(&ctx, "int").unwrap();
-        assert_eq!(String::try_from(v).unwrap_err().to_string(), "cannot use value int (type int) as string");
+        assert_eq!(
+            String::try_from(v).unwrap_err().to_string(),
+            "cannot use value int (type int) as string"
+        );
     }
 
     #[test]
@@ -417,6 +429,9 @@ mod tests {
         assert_eq!(f64::try_from(v).unwrap(), 1.0);
 
         let v = crate::compile(&ctx, "true").unwrap();
-        assert_eq!(f64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as number");
+        assert_eq!(
+            f64::try_from(v).unwrap_err().to_string(),
+            "cannot use value true (type bool) as number"
+        );
     }
 }

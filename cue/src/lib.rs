@@ -1,9 +1,9 @@
-mod context;
 mod compile;
+mod context;
 mod error;
 mod value;
 
-pub use context::*;
 pub use compile::*;
+pub use context::*;
 pub use error::*;
 pub use value::*;
