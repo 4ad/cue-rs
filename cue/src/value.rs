@@ -9,7 +9,7 @@ use std::slice;
 
 use cue_sys;
 
-use crate::{Context, Error};
+use crate::{Context, Error, Kind};
 
 #[derive(Debug)]
 pub struct Value {
@@ -38,6 +38,20 @@ impl Value {
 
     pub fn bottom() -> Self {
         Context::new().top()
+    }
+
+    pub fn kind(&self) -> Kind {
+        unsafe {
+            let kind = cue_sys::cue_concrete_kind(*self.res);
+            Kind::from(kind)
+        }
+    }
+
+    pub fn incomplete_kind(&self) -> Kind {
+        unsafe {
+            let kind = cue_sys::cue_incomplete_kind(*self.res);
+            Kind::from(kind)
+        }
     }
 }
 
@@ -433,5 +447,46 @@ mod tests {
             f64::try_from(v).unwrap_err().to_string(),
             "cannot use value true (type bool) as number"
         );
+    }
+
+    #[test]
+    fn kind() {
+        let ctx = Context::new();
+
+        let v = crate::compile(&ctx, "int").unwrap();
+        assert_eq!(v.incomplete_kind(), Kind::Int);
+
+        let v = crate::compile(&ctx, "1").unwrap();
+        assert_eq!(v.kind(), Kind::Int);
+
+        let v = crate::compile(&ctx, "float64").unwrap();
+        assert_eq!(v.incomplete_kind(), Kind::Number);
+
+        let v = crate::compile(&ctx, "1.0").unwrap();
+        assert_eq!(v.kind(), Kind::Float);
+
+        let v = crate::compile(&ctx, "string").unwrap();
+        assert_eq!(v.incomplete_kind(), Kind::String);
+
+        let v = crate::compile(&ctx, "\"hello\"").unwrap();
+        assert_eq!(v.kind(), Kind::String);
+
+        let v = crate::compile(&ctx, "bool").unwrap();
+        assert_eq!(v.incomplete_kind(), Kind::Bool);
+
+        let v = crate::compile(&ctx, "true").unwrap();
+        assert_eq!(v.kind(), Kind::Bool);
+
+        let v = crate::compile(&ctx, "null").unwrap();
+        assert_eq!(v.kind(), Kind::Null);
+
+        let v = crate::compile(&ctx, "[int, bool]").unwrap();
+        assert_eq!(v.incomplete_kind(), Kind::List);
+
+        let v = crate::compile(&ctx, "{ x: int }").unwrap();
+        assert_eq!(v.incomplete_kind(), Kind::Struct);
+
+        let v = crate::compile(&ctx, "{ x: 1 }").unwrap();
+        assert_eq!(v.kind(), Kind::Struct);
     }
 }
