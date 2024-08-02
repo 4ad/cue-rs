@@ -78,7 +78,7 @@ impl TryFrom<Value> for bool {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res = false;
         unsafe {
-            let err = cue_sys::cue_dec_bool(*value.res, &mut res as *mut bool);
+            let err = cue_sys::cue_dec_bool(*value.res, &mut res);
             if err != 0 {
                return Err(Error::from_res(err))
             }
@@ -121,7 +121,7 @@ impl TryFrom<Value> for i64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res: i64 = 0;
         unsafe {
-            let err = cue_sys::cue_dec_int64(*value.res, &mut res as *mut i64);
+            let err = cue_sys::cue_dec_int64(*value.res, &mut res);
             if err != 0 {
                return Err(Error::from_res(err))
             }
@@ -164,7 +164,7 @@ impl TryFrom<Value> for u64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res: u64 = 0;
         unsafe {
-            let err = cue_sys::cue_dec_uint64(*value.res, &mut res as *mut u64);
+            let err = cue_sys::cue_dec_uint64(*value.res, &mut res);
             if err != 0 {
                return Err(Error::from_res(err))
             }
@@ -207,6 +207,37 @@ impl TryFrom<Value> for String {
 
             Ok(s)
         }
+    }
+}
+
+impl From<f32> for Value {
+    fn from(item: f32) -> Self {
+        Value::from(item as f64)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(item: f64) -> Self {
+        let ctx = Context::new();
+        unsafe {
+            let res = cue_sys::cue_from_double(*ctx.res, item);
+            Self::with_context(ctx, res)
+        }
+    }
+}
+
+impl TryFrom<Value> for f64 {
+    type Error = Error;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let mut res: f64 = 0.0;
+        unsafe {
+            let err = cue_sys::cue_dec_double(*value.res, &mut res);
+            if err != 0 {
+               return Err(Error::from_res(err))
+            }
+        }
+        Ok(res)
     }
 }
 
@@ -355,5 +386,29 @@ mod tests {
 
         let v = crate::compile(&ctx, "int").unwrap();
         assert_eq!(String::try_from(v).unwrap_err().to_string(), "cannot use value int (type int) as string");
+    }
+
+    #[test]
+    fn from_float() {
+        let v = Value::from(1.2);
+        assert_eq!(v.to_json(), "1.2");
+
+        let v = Value::from(-1.2);
+        assert_eq!(v.to_json(), "-1.2");
+
+        let n: f32 = 1.2345000505447388;
+        let v = Value::from(n);
+        assert_eq!(v.to_json(), "1.2345000505447388");
+    }
+
+    #[test]
+    fn to_float() {
+        let ctx = Context::new();
+
+        let v = crate::compile(&ctx, "1.0").unwrap();
+        assert_eq!(f64::try_from(v).unwrap(), 1.0);
+
+        let v = crate::compile(&ctx, "true").unwrap();
+        assert_eq!(f64::try_from(v).unwrap_err().to_string(), "cannot use value true (type bool) as number");
     }
 }
