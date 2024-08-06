@@ -9,26 +9,34 @@ use std::slice;
 
 use cue_sys;
 
-use crate::{Context, Error, Kind};
+use crate::{Context, Error, Kind, Resource};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Value {
     ctx: Context,
-    res: Rc<usize>,
+    res: Rc<Resource>,
 }
 
 impl Value {
-    pub(crate) unsafe fn with_context(ctx: Context, res: usize) -> Self {
+    pub(crate) unsafe fn with_context_from_resource(ctx: Context, res: Resource) -> Self {
         Value {
             ctx,
             res: Rc::new(res),
         }
     }
 
+    pub(crate) unsafe fn with_context_from_raw(ctx: Context, res: usize) -> Self {
+        Value::with_context_from_resource(ctx, Resource::from_raw(res))
+    }
+
+    pub(crate) fn as_raw(&self) -> usize {
+        self.res.as_raw()
+    }
+
     pub fn unify(&self, other: &Self) -> Self {
         unsafe {
-            let res = cue_sys::cue_unify(*self.res, *other.res);
-            Self::with_context(self.ctx.clone(), res)
+            let res = cue_sys::cue_unify(self.as_raw(), other.as_raw());
+            Self::with_context_from_raw(self.ctx.clone(), res)
         }
     }
 
@@ -42,24 +50,15 @@ impl Value {
 
     pub fn kind(&self) -> Kind {
         unsafe {
-            let kind = cue_sys::cue_concrete_kind(*self.res);
+            let kind = cue_sys::cue_concrete_kind(self.as_raw());
             Kind::from(kind)
         }
     }
 
     pub fn incomplete_kind(&self) -> Kind {
         unsafe {
-            let kind = cue_sys::cue_incomplete_kind(*self.res);
+            let kind = cue_sys::cue_incomplete_kind(self.as_raw());
             Kind::from(kind)
-        }
-    }
-}
-
-impl Clone for Value {
-    fn clone(&self) -> Self {
-        Value {
-            ctx: self.ctx.clone(),
-            res: Rc::clone(&self.res),
         }
     }
 }
@@ -70,9 +69,9 @@ impl Value {
         let mut len: usize = 0;
 
         unsafe {
-            let err = cue_sys::cue_dec_json(*self.res, &mut buf_ptr, &mut len);
+            let err = cue_sys::cue_dec_json(self.as_raw(), &mut buf_ptr, &mut len);
             if err != 0 {
-                return Error::from_res(err).to_string();
+                return Error::from_raw(err).to_string();
             }
 
             let slice = slice::from_raw_parts(buf_ptr as *const u8, len);
@@ -88,8 +87,8 @@ impl From<bool> for Value {
     fn from(item: bool) -> Self {
         let ctx = Context::new();
         unsafe {
-            let res = cue_sys::cue_from_bool(*ctx.res, item);
-            Self::with_context(ctx, res)
+            let res = cue_sys::cue_from_bool(ctx.as_raw(), item);
+            Self::with_context_from_raw(ctx, res)
         }
     }
 }
@@ -100,9 +99,9 @@ impl TryFrom<Value> for bool {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res = false;
         unsafe {
-            let err = cue_sys::cue_dec_bool(*value.res, &mut res);
+            let err = cue_sys::cue_dec_bool(value.as_raw(), &mut res);
             if err != 0 {
-                return Err(Error::from_res(err));
+                return Err(Error::from_raw(err));
             }
         }
         Ok(res)
@@ -131,8 +130,8 @@ impl From<i64> for Value {
     fn from(item: i64) -> Self {
         let ctx = Context::new();
         unsafe {
-            let res = cue_sys::cue_from_int64(*ctx.res, item);
-            Self::with_context(ctx, res)
+            let res = cue_sys::cue_from_int64(ctx.as_raw(), item);
+            Self::with_context_from_raw(ctx, res)
         }
     }
 }
@@ -143,9 +142,9 @@ impl TryFrom<Value> for i64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res: i64 = 0;
         unsafe {
-            let err = cue_sys::cue_dec_int64(*value.res, &mut res);
+            let err = cue_sys::cue_dec_int64(value.as_raw(), &mut res);
             if err != 0 {
-                return Err(Error::from_res(err));
+                return Err(Error::from_raw(err));
             }
         }
         Ok(res)
@@ -174,8 +173,8 @@ impl From<u64> for Value {
     fn from(item: u64) -> Self {
         let ctx = Context::new();
         unsafe {
-            let res = cue_sys::cue_from_uint64(*ctx.res, item);
-            Self::with_context(ctx, res)
+            let res = cue_sys::cue_from_uint64(ctx.as_raw(), item);
+            Self::with_context_from_raw(ctx, res)
         }
     }
 }
@@ -186,9 +185,9 @@ impl TryFrom<Value> for u64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res: u64 = 0;
         unsafe {
-            let err = cue_sys::cue_dec_uint64(*value.res, &mut res);
+            let err = cue_sys::cue_dec_uint64(value.as_raw(), &mut res);
             if err != 0 {
-                return Err(Error::from_res(err));
+                return Err(Error::from_raw(err));
             }
         }
         Ok(res)
@@ -200,8 +199,8 @@ impl From<&str> for Value {
         let ctx = Context::new();
         let str_ptr = CString::new(item).unwrap().into_raw();
         unsafe {
-            let res = cue_sys::cue_from_string(*ctx.res, str_ptr);
-            Self::with_context(ctx, res)
+            let res = cue_sys::cue_from_string(ctx.as_raw(), str_ptr);
+            Self::with_context_from_raw(ctx, res)
         }
     }
 }
@@ -218,10 +217,10 @@ impl TryFrom<Value> for String {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut buf_ptr = ptr::null_mut();
         unsafe {
-            let err = cue_sys::cue_dec_string(*value.res, &mut buf_ptr);
+            let err = cue_sys::cue_dec_string(value.as_raw(), &mut buf_ptr);
 
             if err != 0 {
-                return Err(Error::from_res(err));
+                return Err(Error::from_raw(err));
             }
 
             let s = CStr::from_ptr(buf_ptr).to_string_lossy().into_owned();
@@ -242,8 +241,8 @@ impl From<f64> for Value {
     fn from(item: f64) -> Self {
         let ctx = Context::new();
         unsafe {
-            let res = cue_sys::cue_from_double(*ctx.res, item);
-            Self::with_context(ctx, res)
+            let res = cue_sys::cue_from_double(ctx.as_raw(), item);
+            Self::with_context_from_raw(ctx, res)
         }
     }
 }
@@ -254,9 +253,9 @@ impl TryFrom<Value> for f64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let mut res: f64 = 0.0;
         unsafe {
-            let err = cue_sys::cue_dec_double(*value.res, &mut res);
+            let err = cue_sys::cue_dec_double(value.as_raw(), &mut res);
             if err != 0 {
-                return Err(Error::from_res(err));
+                return Err(Error::from_raw(err));
             }
         }
         Ok(res)
@@ -265,7 +264,7 @@ impl TryFrom<Value> for f64 {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { cue_sys::cue_is_equal(*self.res, *other.res) }
+        unsafe { cue_sys::cue_is_equal(self.as_raw(), other.as_raw()) }
     }
 }
 impl Eq for Value {}
@@ -274,16 +273,6 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // TODO: print CUE syntax, not JSON.
         write!(f, "{}", self.to_json())
-    }
-}
-
-impl Drop for Value {
-    fn drop(&mut self) {
-        if Rc::strong_count(&self.res) == 1 {
-            unsafe {
-                cue_sys::cue_free(*self.res);
-            }
-        }
     }
 }
 
