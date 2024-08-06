@@ -18,15 +18,15 @@ pub struct Value {
 }
 
 impl Value {
-    pub(crate) unsafe fn with_context_from_resource(ctx: Context, res: Resource) -> Self {
+    pub(crate) unsafe fn from_resource_with_context(ctx: Context, res: Resource) -> Self {
         Value {
             ctx,
             res: Rc::new(res),
         }
     }
 
-    pub(crate) unsafe fn with_context_from_raw(ctx: Context, res: usize) -> Self {
-        Value::with_context_from_resource(ctx, Resource::from_raw(res))
+    pub(crate) unsafe fn from_raw_with_context(ctx: Context, res: usize) -> Self {
+        Value::from_resource_with_context(ctx, Resource::from_raw(res))
     }
 
     pub(crate) fn as_raw(&self) -> usize {
@@ -36,7 +36,7 @@ impl Value {
     pub fn unify(&self, other: &Self) -> Self {
         unsafe {
             let res = cue_sys::cue_unify(self.as_raw(), other.as_raw());
-            Self::with_context_from_raw(self.ctx.clone(), res)
+            Self::from_raw_with_context(self.ctx.clone(), res)
         }
     }
 
@@ -88,7 +88,7 @@ impl From<bool> for Value {
         let ctx = Context::new();
         unsafe {
             let res = cue_sys::cue_from_bool(ctx.as_raw(), item);
-            Self::with_context_from_raw(ctx, res)
+            Self::from_raw_with_context(ctx, res)
         }
     }
 }
@@ -131,7 +131,7 @@ impl From<i64> for Value {
         let ctx = Context::new();
         unsafe {
             let res = cue_sys::cue_from_int64(ctx.as_raw(), item);
-            Self::with_context_from_raw(ctx, res)
+            Self::from_raw_with_context(ctx, res)
         }
     }
 }
@@ -174,7 +174,7 @@ impl From<u64> for Value {
         let ctx = Context::new();
         unsafe {
             let res = cue_sys::cue_from_uint64(ctx.as_raw(), item);
-            Self::with_context_from_raw(ctx, res)
+            Self::from_raw_with_context(ctx, res)
         }
     }
 }
@@ -200,7 +200,7 @@ impl From<&str> for Value {
         let str_ptr = CString::new(item).unwrap().into_raw();
         unsafe {
             let res = cue_sys::cue_from_string(ctx.as_raw(), str_ptr);
-            Self::with_context_from_raw(ctx, res)
+            Self::from_raw_with_context(ctx, res)
         }
     }
 }
@@ -242,7 +242,7 @@ impl From<f64> for Value {
         let ctx = Context::new();
         unsafe {
             let res = cue_sys::cue_from_double(ctx.as_raw(), item);
-            Self::with_context_from_raw(ctx, res)
+            Self::from_raw_with_context(ctx, res)
         }
     }
 }

@@ -16,7 +16,7 @@ pub fn compile(ctx: &Context, input: &str) -> Result<Value, Error> {
         if err != 0 {
             Err(Error::from_raw(err))
         } else {
-            Ok(Value::with_context_from_raw(ctx.clone(), val))
+            Ok(Value::from_raw_with_context(ctx.clone(), val))
         }
     };
 
